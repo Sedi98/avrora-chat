@@ -1,101 +1,108 @@
-import Image from "next/image";
+'use client';
+import { useState } from "react";
+import Header from "../components/Header";
+import ChatArea from "../components/ChatArea";
+import InputField from "../components/InputField";
+import Sidebar from "../components/Sidebar";
+import TypingIndicator from "../components/TypingIndicator";
+import answers from "../utils/answers";
+import keywords from "../utils/keywords";
 
-export default function Home() {
+interface Message {
+  id: number;
+  text: string;
+  sender: "user" | "ai";
+}
+
+interface Chat {
+  id: number;
+  name: string;
+  messages: Message[];
+}
+
+const Home: React.FC = () => {
+  const [chats, setChats] = useState<Chat[]>([{ id: 1, name: "Çat #1", messages: [] }]);
+  const [activeChatId, setActiveChatId] = useState<number>(1);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const activeChat = chats.find((chat) => chat.id === activeChatId);
+
+  const handleSend = (text: string) => {
+    if (!activeChat) return;
+
+    const userMessage: Message = { id: Date.now(), text, sender: "user" };
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === activeChatId ? { ...chat, messages: [...chat.messages, userMessage] } : chat
+      )
+    );
+
+    setIsTyping(true);
+    setTimeout(() => {
+      generateAIResponse(text);
+    }, 1000);
+  };
+
+  const getRandomResponse = (responseArray: string[]) => {
+    const randomIndex = Math.floor(Math.random() * responseArray.length);
+    return responseArray[randomIndex];
+  };
+
+  const generateAIResponse = (userInput: string) => {
+    if (!activeChat) return;
+
+    const normalizedInput = userInput.toLowerCase();
+    let responseCategory: keyof typeof answers = "love";
+
+    for (const category in keywords) {
+      const keywordList = keywords[category as keyof typeof keywords];
+      if (keywordList.some((keyword) => normalizedInput.includes(keyword))) {
+        responseCategory = category as keyof typeof answers;
+        break;
+      }
+    }
+
+    const responseText = getRandomResponse(answers[responseCategory]);
+
+    const aiMessage: Message = {
+      id: Date.now() + 1,
+      text: responseText,
+      sender: "ai",
+    };
+
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === activeChatId ? { ...chat, messages: [...chat.messages, aiMessage] } : chat
+      )
+    );
+
+    setIsTyping(false);
+  };
+
+  const switchChat = (chatId: number) => {
+    setActiveChatId(chatId);
+  };
+
+  const createNewChat = () => {
+    const newChatId = Date.now();
+    const newChat: Chat = { id: newChatId, name: `Çat #${chats.length + 1}`, messages: [] };
+    setChats((prevChats) => [...prevChats, newChat]);
+    setActiveChatId(newChatId);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className=" h-screen bg-[#212121] text-gray-200">
+      <div className="flex w-full h-full shadow-lg rounded-lg overflow-hidden">
+        <Sidebar chats={chats} onSwitchChat={switchChat} onNewChat={createNewChat} />
+        <div className="flex flex-col w-full">
+          <Header />
+          <ChatArea messages={activeChat?.messages || []} />
+          {isTyping && <TypingIndicator />}
+          <InputField onSend={handleSend} />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
-}
+};
+
+export default Home;
